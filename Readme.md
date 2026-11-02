@@ -1,144 +1,38 @@
-# Compresor Huffman Concurrente — Parcial 2 Sistemas Operativos (Alternativa 1)
+# Compresor Huffman Concurrente
 
-Módulo de compresión/descompresión Huffman en C con `pthread`, **integrado
-como tarea en segundo plano al editor del Parcial 1** (`editor/`).
+Compresor y descompresor de archivos con codificación de Huffman, escrito en C con `pthread`.
+El archivo se procesa por bloques en paralelo y la compresión se integra como tarea en segundo
+plano al editor de texto del Parcial 1 (`editor/`), sin congelar la interfaz y sin condiciones de
+carrera al editar mientras se comprime.
 
-```
-make            # compila huffcli, demo_editor y el editor integrado (editor/editor)
-make -C editor test   # pruebas del Parcial 1 + pruebas de concurrencia del editor
-make -C editor tsan   # editor con ThreadSanitizer
-./editor/editor documento.txt                  # editor con comandos c/x/k/s
-make test       # integridad (cmp + md5) y determinismo
-make tsan       # ThreadSanitizer  -> condiciones de carrera
-make asan       # AddressSanitizer -> memoria inválida y fugas
-make valgrind   # memcheck + helgrind
-./huffcli -c archivo.txt archivo.huf -t 4      # comprimir con 4 hilos
-./huffcli -d archivo.huf restaurado.txt        # descomprimir
-./demo_editor documento.txt                    # simulación de la integración
-```
+Parcial 2 de Sistemas Operativos (Universidad EAFIT), Alternativa 1.
 
 ---
 
-## 1. Pasos para completar el parcial
-
-| # | Paso | Estado en esta base |
-|---|------|---------------------|
-| 1 | Formar el equipo (máx. 5) y elegir **Alternativa 1** | — |
-| 2 | Entender Huffman secuencial (frecuencias → árbol → códigos) | ✅ `src/huffman.c` |
-| 3 | Diseñar el formato de archivo `.huf` por bloques | ✅ (sección 4) |
-| 4 | Paralelizar el **conteo de frecuencias** (reducción local) | ✅ `freq_worker` |
-| 5 | Paralelizar la **codificación** + **escritura ordenada** | ✅ `pipe_worker` + `ordered_writer` |
-| 6 | Descompresión paralela (índice de bloques) | ✅ `do_decompress` |
-| 7 | API asíncrona (start / status / cancel / join) | ✅ `include/hf_concurrent.h` |
-| 8 | Proteger el archivo ante guardado concurrente | ✅ `file_guard` |
-| 9 | Señales (Ctrl+C) y liberación de recursos | ✅ `sigwait` / `signalfd`, `.tmp` + `rename` |
-| 10 | Pruebas: md5/cmp, TSan, ASan, Valgrind, Helgrind | ✅ `make test/tsan/asan/valgrind`, `make -C editor test/tsan` |
-| 11 | **Integrar al editor del Parcial 1** (progreso real, guardado diferido) | ✅ `editor/` (sección 5) |
-| 12 | Medir speedup (1, 2, 4, 8 hilos) y tabularlo | ✅ `evidencias/speedup.md` |
-| 13 | Preparar sustentación (video o presencial en 19-424) | ⏳ ver sección 7 |
-| 14 | **Cada integrante** sube las evidencias a EAFIT Interactiva (semana 12) | ⏳ |
-
-Recuerda: asistir a las 3 horas de consulta en clase es obligatorio antes de pedir asesoría por Teams.
-
----
-
-## 2. Estructura
+## Compilar y usar
 
 ```
-include/huffman.h        núcleo Huffman (sin hilos, reentrante)
-include/file_guard.h     cerrojo lectores/escritor del archivo del editor
-include/hf_concurrent.h  API pública asíncrona (lo único que usa el editor)
-src/huffman.c
-src/file_guard.c
-src/hf_concurrent.c      motor concurrente (pool, ventana, escritor ordenado)
-src/huffcli.c            CLI con barra de progreso y Ctrl+C
-src/demo_editor.c        mini-editor de referencia (patrón de integración)
-tests/run_tests.sh       pruebas de integridad
-editor/                  EDITOR DEL PARCIAL 1 CON EL COMPRESOR INTEGRADO
-  src/estructura.c/.h    lista doblemente ligada de líneas (sin cambios)
-  src/editor.c/.h        estado del editor + guard + tarea en segundo plano + guardado diferido
-  src/comando.c/.h       bucle poll()+signalfd, comandos o/p/a/d/q + c/x/k/s
-  src/main.c
-  pruebas_editor.sh      pruebas originales del Parcial 1 (23, siguen pasando)
-  pruebas_concurrencia.sh pruebas del Parcial 2 (21): carrera, cancelación, señal, md5
+make                                   # compila huffcli, demo_editor y editor/editor
+./editor/editor documento.txt          # editor con compresión en segundo plano
+./huffcli -c archivo.txt archivo.huf   # comprimir desde la terminal
+./huffcli -d archivo.huf salida.txt    # descomprimir
 ```
 
----
+Opciones de `huffcli`: `-t N` número de hilos (por defecto, los núcleos disponibles),
+`-s KB` tamaño de bloque (por defecto 1024), `-v` tiempo de cada fase. Ctrl+C cancela sin dejar
+archivos a medias.
 
-## 3. Arquitectura de hilos
+### Comandos del editor
 
-```
- Hilo UI (editor)                 Hilo COORDINADOR                 Pool de N TRABAJADORES
- ────────────────                 ────────────────                 ──────────────────────
- hf_job_start() ──pthread_create──► abre archivos
-   (toma file_guard)                │
- ciclo de eventos:                  │ FASE 1: conteo ───crea──────► toma índice i (mutex)
-   poll(timeout)                    │                               pread(bloque i)
-   hf_job_get_status() ◄──cv/mtx────┤                               histograma LOCAL
-   dibuja barra                     │                               suma al global (mutex, 1 vez/bloque)
-   el usuario sigue editando        │ join (barrera)
-                                    │ construye árbol (1 hilo, luego solo-lectura)
-                                    │ FASE 2: ─────────────crea──────► espera espacio en ventana (cv_space)
-                                    │ ESCRITOR ORDENADO                codifica bloque i SIN lock
-                                    │   espera ranura i (cv_ready) ◄── deposita en slots[i % W]
-                                    │   write() SIN lock
-                                    │   next_write++ → cv_space ────►
-                                    │ join, fsync, close, rename(.tmp → destino)
-                                    │ libera file_guard
-                                    └─ publica estado final (cv)
- hf_job_join() ◄────────────────────
-```
-
-### Protocolo de concurrencia (qué protege cada primitiva)
-
-| Primitiva | Protege / señala | Quién espera | Quién señala |
-|-----------|------------------|--------------|--------------|
-| `job->mtx` | `state, phase, done, total, cancel, message` | UI en `hf_job_wait_update` | coordinador / trabajadores al avanzar |
-| `job->cv` | "cambió el progreso o el estado" | UI | `job_progress_add`, fin del trabajo |
-| `pipe->mtx` | `next_task, next_write, slots[], freq[], abort` | — | — |
-| `pipe->cv_space` | "hay ranura libre en la ventana" | trabajadores | escritor tras escribir un bloque |
-| `pipe->cv_ready` | "la ranura `next_write` está lista" | escritor | trabajador que deposita el bloque `next_write` |
-| `file_guard` (mutex+cv) | archivo del documento en disco | `write_acquire` | `read_release` / `write_release` |
-
-**Invariante de la ventana:** un trabajador solo toma el bloque `i` si
-`i < next_write + W`. Por eso, cuando deposita en `slots[i % W]`, el bloque
-`i - W` ya fue escrito y esa ranura está vacía. Esto da **memoria acotada**
-(como máximo `W = 2N` bloques en RAM) y es el problema clásico
-**productor-consumidor** con buffer acotado.
-
----
-
-## 4. Formato `.huf`
-
-```
-"HUF1" | u64 tamaño_original | u32 tamaño_bloque | u32 num_bloques | u64 freq[256]
-por cada bloque: u32 bytes_originales | u32 bytes_codificados | datos...
-```
-
-* Todos los enteros en little-endian (portables entre máquinas).
-* Se guarda la **tabla de frecuencias** (no el árbol): el descompresor
-  reconstruye exactamente el mismo árbol porque la construcción es
-  determinista (desempate por índice de nodo).
-* Cada bloque empieza alineado a byte → los bloques se **decodifican de
-  forma independiente y en paralelo**.
-* La salida es **idéntica sin importar el número de hilos** (se verifica en `make test`).
-
----
-
-## 5. Editor integrado (`editor/`)
-
-Es una copia del editor del Parcial 1 (`editorEAFIT`) con el compresor integrado.
-Los comandos originales `o/p/a/d/q` funcionan igual (sus 23 pruebas siguen pasando).
+Los comandos del Parcial 1 (`o`, `p`, `a`, `d`, `q`) funcionan igual. Se agregan:
 
 | Comando | Qué hace |
 |---|---|
 | `c [salida]` | Comprime el documento en segundo plano (por defecto `<doc>.huf`) |
 | `x <archivo.huf> [salida]` | Descomprime en segundo plano (por defecto `<archivo>.restaurado`) |
-| `k` | Cancela la tarea en curso (no deja archivos a medias) |
-| `s` | Estado: barra, fase, bloques, guardado pendiente |
-| Ctrl+C | Con tarea: la cancela. Sin tarea: sale limpiamente |
-
-Ejemplo real:
+| `k` | Cancela la tarea en curso |
+| `s` | Muestra el estado: progreso, fase, bloques y si hay un guardado pendiente |
+| Ctrl+C | Con una tarea en curso, la cancela; sin tarea, sale del editor |
 
 ```
 cmd> c
@@ -148,67 +42,169 @@ Comprimiendo 'notas.txt' -> 'notas.txt.huf' en segundo plano.
 Linea agregada al final de 'notas.txt' (ahora 900001 linea(s)).
   El archivo esta siendo leido por la compresion en segundo plano: el cambio queda en memoria
   y el guardado en disco queda PENDIENTE hasta que la tarea termine.
-  [compresion] [############################..]  94%  (codificacion)
   [compresion] TERMINADA: notas.txt -> notas.txt.huf (43200000 bytes originales, 42 bloques)
   [guardado pendiente] cambios escritos en 'notas.txt'.
-cmd>
 ```
 
-### Cambios respecto al editor del Parcial 1 y por qué
+---
 
-1. **Bucle principal con `poll()` + `read()` en vez de `fgets()`.** `fgets` bloquea hasta que el
-   usuario presiona Enter, así que el progreso no podría actualizarse solo. `poll()` con timeout de
-   100 ms (solo mientras hay tarea; si no, espera indefinidamente) refresca el progreso sin espera
-   activa. Se usa `read()` y no stdio porque stdio puede guardar líneas en su buffer interno que
-   `poll()` no ve.
-2. **Guardado con `editor_guardar()`.** El editor guarda en disco en cada `a`/`d`. Mientras una
-   compresión lee el archivo, ese guardado lo corrompería. Ahora el guardado intenta tomar el
-   `file_guard` como escritor **sin bloquear**; si la compresión lo tiene como lectora, el cambio
-   queda en memoria y el guardado se **difiere** hasta que la tarea termina. Así:
-   * la UI nunca se congela;
-   * el `.huf` corresponde exactamente a la versión que había al iniciar (verificado con md5);
-   * ningún cambio del usuario se pierde.
-3. **La lista de líneas solo la toca el hilo de UI.** Los hilos del compresor trabajan sobre el
-   archivo en disco, nunca sobre la estructura en memoria → no necesita mutex.
-4. **Señales con `signalfd`.** `SIGINT/SIGTERM` se bloquean antes de crear hilos y se leen como un
-   descriptor más en el mismo `poll()`.
-5. **Salida limpia.** `q`, EOF o una señal: se cancela/espera la tarea, `pthread_join`, se escribe
-   el guardado pendiente y se libera todo (Valgrind: 0 bytes en uso al salir).
-6. **Protecciones:** no se puede abrir otro archivo (`o`) ni lanzar otra tarea mientras hay una en
-   curso, ni comprimir/descomprimir sobre el documento abierto.
+## Estructura
 
-### Integrar en otro proyecto
-
-Copia `include/` y `src/huffman.c, src/hf_concurrent.c, src/file_guard.c`, compila con `-pthread`
-y sigue el patrón de `editor/src/comando.c` (`revisar_tarea`, `imprimir_prompt`) y
-`editor/src/editor.c` (`editor_guardar`, `editor_terminar_tarea`).
+```
+include/huffman.h         núcleo Huffman: árbol, códigos, codificar y decodificar (sin hilos)
+include/hf_concurrent.h   API asíncrona: iniciar, consultar progreso, cancelar y esperar un trabajo
+include/file_guard.h      cerrojo lectores/escritor que protege el archivo del editor
+src/hf_concurrent.c       motor concurrente: pool de hilos, ventana y escritor ordenado
+src/huffcli.c             programa de terminal con barra de progreso
+src/demo_editor.c         ejemplo mínimo de integración
+editor/src/               editor del Parcial 1 con el compresor integrado
+tests/run_tests.sh        pruebas de integridad del compresor
+editor/pruebas_*.sh       pruebas del editor (Parcial 1) y de concurrencia (Parcial 2)
+evidencias/               salidas de las pruebas y mediciones de rendimiento
+```
 
 ---
 
-## 6. Evidencias para la rúbrica
+## Cómo funciona
 
-| Criterio (pts) | Evidencia en esta base |
+```
+ Hilo del editor                 Hilo COORDINADOR                 N hilos TRABAJADORES
+ ───────────────                 ────────────────                 ────────────────────
+ hf_job_start() ──crea──────────► abre los archivos
+   (toma file_guard)               │
+ ciclo de eventos:                 │ FASE 1: conteo ───crea──────► toma el índice i (mutex)
+   poll(timeout)                   │                               pread(bloque i)
+   hf_job_get_status() ◄──cv/mtx───┤                               histograma LOCAL
+   dibuja el progreso              │                               suma al global (mutex, 1 vez/bloque)
+   el usuario sigue editando       │ join (barrera)
+                                   │ construye el árbol (1 hilo; luego solo lectura)
+                                   │ FASE 2: ─────────────crea──────► espera espacio en la ventana (cv_space)
+                                   │ ESCRITOR ORDENADO                codifica el bloque i SIN lock
+                                   │   espera la ranura i (cv_ready) ◄ deposita en slots[i % W]
+                                   │   write() SIN lock
+                                   │   next_write++ → cv_space ──────►
+                                   │ join, fsync, close, rename(.tmp → destino)
+                                   │ libera file_guard
+                                   └─ publica el estado final (cv)
+ hf_job_join() ◄───────────────────
+```
+
+1. **Conteo de frecuencias en paralelo.** Cada hilo cuenta su bloque en un histograma propio, sin
+   lock, y lo suma al global dentro del mutex una sola vez por bloque (reducción local).
+2. **Árbol.** Lo construye el coordinador a partir de las frecuencias globales. Desde ahí es de
+   solo lectura, así que los hilos lo comparten sin protegerlo.
+3. **Codificación en paralelo con salida ordenada.** Es un productor–consumidor con una ventana
+   de `W = 2N` ranuras: los trabajadores codifican y depositan, y el coordinador escribe los bloques
+   en orden `0, 1, 2…`. Un trabajador solo toma el bloque `i` si `i < next_write + W`, lo que acota
+   la memoria a `W` bloques.
+4. **Descompresión en paralelo.** Cada bloque comprimido empieza alineado a byte, así que se
+   decodifica de forma independiente con el mismo esquema de ventana.
+
+### Primitivas de sincronización
+
+| Primitiva | Protege o señala | Quién espera | Quién señala |
+|---|---|---|---|
+| `job->mtx` | estado, fase, progreso, cancelación y mensaje del trabajo | el editor, en `hf_job_wait_update` | coordinador y trabajadores al avanzar |
+| `job->cv` | "cambió el progreso o el estado" | el editor | `job_progress_add`, fin del trabajo |
+| `pipe->mtx` | `next_task`, `next_write`, `slots[]`, `freq[]`, `abort` | — | — |
+| `pipe->cv_space` | "hay una ranura libre en la ventana" | trabajadores | el escritor, tras escribir un bloque |
+| `pipe->cv_ready` | "la ranura `next_write` está lista" | el escritor | el trabajador que deposita ese bloque |
+| `file_guard` (mutex + cv) | el archivo del documento en disco | `file_guard_write_acquire` | `read_release`, `write_release` |
+
+- **Sin espera activa:** los hilos duermen en `pthread_cond_wait`, el editor en `poll()` y el
+  progreso se consulta con `pthread_cond_timedwait`. Toda espera está dentro de un `while`.
+- **Sin interbloqueo:** ningún hilo tiene dos mutex tomados a la vez, y una cancelación o un error
+  despiertan a todos con `broadcast` en las dos variables de condición.
+- **Señales:** los hilos del motor bloquean todas las señales. El editor las recibe con `signalfd`
+  dentro de su `poll()` y `huffcli` con un hilo dedicado a `sigwait`; ambos piden la cancelación.
+- **Archivos a medias:** la salida se escribe en `<salida>.tmp` y se renombra solo si todo salió bien.
+
+### Decisiones de diseño
+
+- **`pread` en vez de `read`:** lee en una posición dada sin usar el offset compartido del
+  descriptor, así que varios hilos leen el mismo archivo sin lock.
+- **`file_guard` propio en vez de `pthread_rwlock`:** el cerrojo se toma en el hilo del editor y se
+  libera en el coordinador, y POSIX no permite desbloquear un `rwlock` desde otro hilo.
+- **El guard se libera antes de publicar "terminado":** así el guardado pendiente del editor
+  encuentra el archivo libre.
+
+---
+
+## Integración con el editor
+
+`editor/` es el editor del Parcial 1 con estos cambios:
+
+1. **Bucle principal con `poll()` + `read()` en lugar de `fgets()`.** `fgets` bloquea hasta que el
+   usuario presiona Enter, y el progreso no podría actualizarse solo. `poll()` despierta cada 100 ms
+   solo mientras hay una tarea en curso. Se usa `read()` porque el buffer de stdio puede guardar
+   líneas que `poll()` no ve.
+2. **Guardado diferido.** El editor guarda en disco con cada `a` o `d`. Mientras una compresión lee
+   el archivo, el guardado intenta tomar el `file_guard` como escritor sin bloquear. Si está
+   ocupado, el cambio queda en memoria y se escribe cuando la tarea termina. Así el `.huf`
+   corresponde a la versión que había al empezar y ningún cambio se pierde.
+3. **La lista de líneas no tiene mutex:** solo la toca el hilo del editor. El recurso compartido es
+   el archivo en disco.
+4. **Salida limpia:** con `q`, EOF o una señal se cancela o espera la tarea, se hace `pthread_join`,
+   se escribe el guardado pendiente y se libera toda la memoria.
+5. **Protecciones:** durante una tarea no se puede abrir otro archivo ni iniciar otra tarea, y nunca
+   se comprime o descomprime sobre el documento abierto.
+
+---
+
+## Formato `.huf`
+
+```
+"HUF1" | u64 tamaño_original | u32 tamaño_bloque | u32 num_bloques | u64 freq[256]
+por cada bloque: u32 bytes_originales | u32 bytes_codificados | datos...
+```
+
+- Enteros en little-endian.
+- Se guarda la tabla de frecuencias y no el árbol: la construcción es determinista (desempate por
+  índice de nodo), así que el descompresor reconstruye el mismo árbol.
+- El archivo comprimido es idéntico sin importar el número de hilos.
+
+---
+
+## Pruebas
+
+```
+make test             # integridad del compresor
+make -C editor test   # pruebas del editor (Parcial 1) y de concurrencia
+make tsan             # ThreadSanitizer sobre el compresor
+make -C editor tsan   # ThreadSanitizer sobre el editor
+make asan             # AddressSanitizer
+make valgrind         # memcheck y helgrind
+```
+
+| Prueba | Resultado |
 |---|---|
-| Concurrencia en Huffman (25) | Fase 1 con reducción local, fase 2 con pool, salida ordenada. Medir speedup con `huffcli -t 1/2/4/8` VM con 12 CPUs lógicas (6 núcleos × 2 hilos según `lscpu`; el proceso podía usar 11). Speedup (mediana de 10 rondas intercaladas): 3.65× con 4 hilos, 5.06× con 6 y 5.16× con 8 (eficiencia 0.91, 0.84 y 0.65).<br>La ganancia se detiene a partir de 6 hilos, también en el conteo, que no usa el escritor ordenado. Esto coincide con los 6 núcleos físicos, pero no se aisló la causa: la VM no permite controlar la ubicación real de los hilos, y también pueden influir la memoria o los límites de potencia. El árbol tarda unos 13 µs y no influye. |
-| Sincronización (25) | Todos los `wait` dentro de `while`; cero espera activa (`cond_wait`, `cond_timedwait`, `poll`). `make tsan` y Helgrind sin reportes. Sin interbloqueo: nunca se tienen dos mutex a la vez (sin orden circular posible). |
-| Integración con el editor (20) | `editor/`: editor del Parcial 1 con `c/x/k/s`, progreso en el prompt y barra cada 10%, edición durante la compresión con guardado diferido, snapshot consistente (md5). `make -C editor test`: 23 pruebas del P1 + 21 de concurrencia; `make -C editor tsan` sin reportes. |
-| Corrección algorítmica (15) | `make test`: `cmp` + `md5sum` en vacío, 1 byte, 1 símbolo, texto, binario aleatorio, múltiplo exacto de bloque, bloques de 4 KB; archivo corrupto rechazado. |
-| Errores y recursos (15) | `make asan` / `make valgrind` sin fugas; `.tmp` + `rename()` atómico; `fsync`/`close` verificados; `pthread_join` de todos los hilos; cancelación por Ctrl+C (exit 130) sin dejar archivos a medias. |
+| Integridad (`cmp` + `md5sum`): archivo vacío, 1 byte, un solo símbolo, texto, binario aleatorio, múltiplo exacto del bloque; con 1 y 8 hilos | Todas idénticas; un archivo corrupto se rechaza sin fallar |
+| Editor: pruebas originales del Parcial 1 | 23 de 23 |
+| Editor: concurrencia (edición durante la compresión, cancelación, SIGINT, protecciones) | 21 de 21 |
+| ThreadSanitizer y Helgrind | 0 reportes |
+| AddressSanitizer y Valgrind | 0 errores, 0 bytes en uso al salir |
+
+Las salidas completas están en `evidencias/`.
 
 ---
 
-## 7. Preguntas probables en la sustentación (y respuestas)
+## Rendimiento
 
-* **¿Por qué reducción local y no un mutex por byte?** Un lock por byte serializa todo y la contención mata el paralelismo. Con histograma local hay 1 lock por bloque (256 sumas), así que la contención es despreciable.
-* **¿Por qué no usar atomics para las frecuencias?** Funcionaría, pero aún habría *false sharing* y tráfico de caché por cada byte; la reducción local es más rápida y además es lo que pide el enunciado.
-* **¿Cómo garantizan el orden de salida?** El coordinador escribe `0,1,2...` esperando con `cv_ready` a que la ranura `next_write` esté lista; los trabajadores pueden terminar en cualquier orden.
-* **¿Por qué la ventana acotada?** Sin ella, si el bloque 0 es lento, los demás se acumularían en RAM sin límite. Con `W = 2N` la memoria queda acotada y los trabajadores esperan (sin busy-wait) con `cv_space`.
-* **¿Por qué `pread` y no `read`?** `pread` no usa el offset compartido del descriptor: varios hilos leen el mismo `fd` sin lock.
-* **¿Por qué el guard no es `pthread_rwlock`?** Se adquiere en el hilo UI y se libera en el coordinador; desbloquear un `rwlock` desde otro hilo es comportamiento indefinido en POSIX. Con mutex + cv sí es válido.
-* **¿Por qué se libera el guard ANTES de publicar "terminado"?** Para que cuando la UI vea el estado final, el guardado pendiente pueda ejecutarse sin encontrar el archivo ocupado.
-* **¿Qué pasa si llega Ctrl+C con un hilo dentro de un mutex?** No puede pasar: los hilos del motor bloquean todas las señales; solo un hilo dedicado (`sigwait`) o `signalfd` las recibe y llaman `hf_job_cancel()`.
-* **¿Por qué `while` y no `if` alrededor de `pthread_cond_wait`?** Despertares espurios, y porque otro hilo puede cambiar la condición entre la señal y la readquisición del mutex.
-* **¿Por qué el editor no bloquea la lista de líneas con un mutex?** Porque solo un hilo (la UI) la toca. El recurso compartido real es el archivo en disco, y ese sí está protegido por `file_guard`.
-* **¿Qué pasa si el usuario guarda mientras se comprime?** `file_guard_try_write` devuelve `EBUSY`, el cambio queda en memoria y se marca `guardado_pendiente`; al terminar la tarea (después del `join`) se escribe.
-* **¿Por qué `poll` y no `fgets`?** `fgets` bloquea la UI hasta Enter; `poll` con timeout permite refrescar el progreso sin espera activa.
-* **¿Puede haber deadlock?** Ningún hilo sostiene dos mutex a la vez (`job->mtx` y `pipe->mtx` nunca se anidan), así que no hay espera circular. `abort` hace `broadcast` en ambas cv para que nadie quede dormido.
+Archivo de 200 MB, mediana de 10 rondas en orden aleatorio, en una VM con 12 CPUs lógicas
+(6 núcleos × 2 hilos según `lscpu`). Detalle en `evidencias/topologia.md` y `evidencias/fases.md`.
+
+| Hilos | Speedup | Eficiencia |
+|---|---|---|
+| 1 | 1.00× | 1.00 |
+| 2 | 1.98× | 0.99 |
+| 4 | 3.65× | 0.91 |
+| 6 | 5.06× | 0.84 |
+| 8 | 5.16× | 0.65 |
+
+La ganancia se detiene a partir de 6 hilos, también en la fase de conteo, que no usa el escritor
+ordenado. Construir el árbol tarda unos 13 µs y no influye. El límite coincide con los 6 núcleos
+físicos, pero la causa no se aisló: la VM no permite controlar dónde corren los hilos, y también
+pueden influir el ancho de banda de memoria o los límites de potencia.
+
+**Limitaciones:** un solo trabajo a la vez, y las mediciones usan un archivo muy repetitivo en
+memoria (`tmpfs`).
