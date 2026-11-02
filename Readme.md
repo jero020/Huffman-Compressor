@@ -34,7 +34,7 @@ make valgrind   # memcheck + helgrind
 | 9 | Señales (Ctrl+C) y liberación de recursos | ✅ `sigwait` / `signalfd`, `.tmp` + `rename` |
 | 10 | Pruebas: md5/cmp, TSan, ASan, Valgrind, Helgrind | ✅ `make test/tsan/asan/valgrind`, `make -C editor test/tsan` |
 | 11 | **Integrar al editor del Parcial 1** (progreso real, guardado diferido) | ✅ `editor/` (sección 5) |
-| 12 | Medir speedup (1, 2, 4, 8 hilos) y tabularlo | ⏳ |
+| 12 | Medir speedup (1, 2, 4, 8 hilos) y tabularlo | ✅ `evidencias/speedup.md` |
 | 13 | Preparar sustentación (video o presencial en 19-424) | ⏳ ver sección 7 |
 | 14 | **Cada integrante** sube las evidencias a EAFIT Interactiva (semana 12) | ⏳ |
 
@@ -189,7 +189,7 @@ y sigue el patrón de `editor/src/comando.c` (`revisar_tarea`, `imprimir_prompt`
 
 | Criterio (pts) | Evidencia en esta base |
 |---|---|
-| Concurrencia en Huffman (25) | Fase 1 con reducción local, fase 2 con pool, salida ordenada. Medir speedup con `huffcli -t 1/2/4/8` (en una prueba con 2 núcleos: 2.09 s → 1.14 s, 1.8×). |
+| Concurrencia en Huffman (25) | Fase 1 con reducción local, fase 2 con pool, salida ordenada. Medir speedup con `huffcli -t 1/2/4/8` (VM de 11 núcleos, 1→8 hilos: 2.085 s → 0.413 s, 5.04×; eficiencia 0.96 con 4 hilos y 0.63 con 8).<br>La caída de eficiencia se debe a la parte secuencial (árbol y escritor ordenado) y al ancho de banda de memoria (ley de Amdahl). |
 | Sincronización (25) | Todos los `wait` dentro de `while`; cero espera activa (`cond_wait`, `cond_timedwait`, `poll`). `make tsan` y Helgrind sin reportes. Sin interbloqueo: nunca se tienen dos mutex a la vez (sin orden circular posible). |
 | Integración con el editor (20) | `editor/`: editor del Parcial 1 con `c/x/k/s`, progreso en el prompt y barra cada 10%, edición durante la compresión con guardado diferido, snapshot consistente (md5). `make -C editor test`: 23 pruebas del P1 + 21 de concurrencia; `make -C editor tsan` sin reportes. |
 | Corrección algorítmica (15) | `make test`: `cmp` + `md5sum` en vacío, 1 byte, 1 símbolo, texto, binario aleatorio, múltiplo exacto de bloque, bloques de 4 KB; archivo corrupto rechazado. |
