@@ -3,4 +3,7 @@ demo_editor
 *.huf
 *.tmp
 *.o
+*.d
 *.restaurado
+editor/editor
+editor/obj/

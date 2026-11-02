@@ -604,7 +604,10 @@ static void *coordinator_main(void *arg)
         j->phase = "terminado";
         snprintf(j->message, sizeof j->message, "%s -> %s (%llu bytes originales, %u bloques)",
                  j->in_path, j->out_path, (unsigned long long)c.in_size, c.nchunks);
-    } else if (j->cancel) {
+    } else if (j->cancel && (c.err[0] == '\0' || strcmp(c.err, "cancelado") == 0)) {
+        /* Solo se reporta CANCELADO si la causa fue la cancelación; un error
+         * real (p. ej. archivo inexistente) se reporta como ERROR aunque el
+         * usuario también haya pedido cancelar. */
         j->state = HF_STATE_CANCELLED;
         j->phase = "cancelado";
         snprintf(j->message, sizeof j->message, "operación cancelada por el usuario");
