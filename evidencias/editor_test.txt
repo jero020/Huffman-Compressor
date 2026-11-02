@@ -1,0 +1,128 @@
+make: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+./pruebas_editor.sh
+----------------------------------------------------------------
+1. Compilando el editor (make clean && make)
+----------------------------------------------------------------
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+mkdir -p obj
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/comando.o src/comando.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/editor.o src/editor.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/estructura.o src/estructura.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/main.o src/main.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/huf_huffman.o ../src/huffman.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/huf_hf_concurrent.o ../src/hf_concurrent.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/huf_file_guard.o ../src/file_guard.c
+gcc -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -o editor obj/comando.o obj/editor.o obj/estructura.o obj/main.o obj/huf_huffman.o obj/huf_hf_concurrent.o obj/huf_file_guard.o -pthread
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+  [OK]    Compilacion limpia, sin warnings (-Wall -Wextra -pedantic -std=c99)
+
+----------------------------------------------------------------
+2. Escenario: 'o' crea un archivo que no existe
+----------------------------------------------------------------
+  [OK]    o informa que el archivo se creo vacio
+  [OK]    el archivo nuevo queda en disco con 0 bytes (0 bytes)
+
+----------------------------------------------------------------
+3. Escenario: 'a' agrega lineas, 'p' las imprime todas
+----------------------------------------------------------------
+  [OK]    a confirma cada linea agregada
+  [OK]    p muestra 'primera linea'
+  [OK]    p muestra 'segunda linea'
+  [OK]    p muestra 'tercera linea'
+
+----------------------------------------------------------------
+4. Escenario: 'p n' imprime solo la linea n, reabriendo desde disco
+----------------------------------------------------------------
+  [OK]    p 3 imprime exactamente 'segunda linea'
+  [OK]    p 3 no imprime 'tercera linea'
+
+----------------------------------------------------------------
+5. Escenario: 'd n' borra una linea intermedia y persiste de inmediato
+----------------------------------------------------------------
+  [OK]    d 2 confirma el borrado
+  [OK]    la linea borrada ('primera linea') ya no aparece
+  [OK]    las lineas restantes se conservan
+
+----------------------------------------------------------------
+6. Caso borde: borrar hasta dejar el archivo en 0 bytes exactos
+----------------------------------------------------------------
+  [OK]    archivo vacio queda en 0 bytes tras borrar su unica linea (0 bytes)
+
+----------------------------------------------------------------
+7. Manejo de errores: argumentos invalidos y comandos desconocidos
+----------------------------------------------------------------
+  [OK]    'p 999' (fuera de rango) reporta error sin crashear
+  [OK]    'd abc' (no numerico) reporta uso correcto
+  [OK]    'o' sin argumento reporta uso correcto
+  [OK]    'z' (comando desconocido) se reporta sin crashear
+
+----------------------------------------------------------------
+8. Escenario: cambiar de archivo activo con 'o' en la misma sesion
+----------------------------------------------------------------
+  [OK]    tras reabrir, 'p' muestra el contenido del archivo nuevo (F4)
+  [OK]    tras reabrir, 'p' ya no muestra el archivo anterior (F1)
+  [OK]    el archivo anterior (F1) quedo guardado en disco antes de cambiar
+
+----------------------------------------------------------------
+9. 'q' termina el proceso con codigo de salida 0 (sin fugas de memoria)
+----------------------------------------------------------------
+  [OK]    'q' sale limpiamente (exit 0)
+  Verificando fugas de memoria con valgrind...
+  [OK]    valgrind no reporta memoria perdida
+
+----------------------------------------------------------------
+10. Escenario: EOF en stdin (Ctrl+D) sin escribir 'q' no debe crashear
+----------------------------------------------------------------
+  [OK]    cierre por EOF termina con codigo de salida 0 (exit 0)
+
+----------------------------------------------------------------
+RESUMEN: 23 prueba(s) exitosa(s), 0 fallida(s)
+----------------------------------------------------------------
+./pruebas_concurrencia.sh
+Documento de prueba: 49050000 bytes, 450000 lineas
+
+----------------------------------------------------------------
+1-2. Compresion en segundo plano + edicion concurrente (condicion de carrera)
+----------------------------------------------------------------
+  [OK]    la compresion arranca en segundo plano
+  [OK]    la edicion durante la compresion se difiere (no bloquea la UI)
+  [OK]    se muestra el progreso en tiempo real
+  [OK]    la compresion termina
+  [OK]    el guardado pendiente se ejecuta al terminar
+  [OK]    el cambio del usuario quedo en disco (no se perdio)
+  [OK]    el .huf corresponde EXACTAMENTE a la version al iniciar (md5 2463d744fc79f6e852cbb9a8a904c828)
+
+----------------------------------------------------------------
+3. Descompresion en segundo plano desde el editor ('x')
+----------------------------------------------------------------
+  [OK]    la descompresion termina
+  [OK]    restaurado == original (cmp, md5 2463d744fc79f6e852cbb9a8a904c828)
+
+----------------------------------------------------------------
+4. Cancelacion con 'k'
+----------------------------------------------------------------
+  [OK]    la tarea se reporta como cancelada
+  [OK]    no quedan archivos a medias (.huf ni .huf.tmp)
+
+----------------------------------------------------------------
+5. Ctrl+C (SIGINT) durante la compresion
+----------------------------------------------------------------
+  [OK]    SIGINT cancela la tarea
+  [OK]    la tarea queda cancelada
+  [OK]    el editor sigue vivo y atiende comandos despues de la senal
+  [OK]    el editor termina normalmente (exit 0)
+  [OK]    no queda .huf.tmp
+
+----------------------------------------------------------------
+6. Protecciones mientras hay una tarea en curso
+----------------------------------------------------------------
+  [OK]    no se puede abrir otro archivo con una tarea en curso
+  [OK]    no se lanzan dos tareas a la vez
+  [OK]    no se descomprime sobre el documento abierto
+  [OK]    no se comprime sobre el mismo documento
+  [OK]    un .huf inexistente se reporta como error sin crashear
+
+----------------------------------------------------------------
+RESUMEN: 21 prueba(s) exitosa(s), 0 fallida(s)
+----------------------------------------------------------------
+make: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'

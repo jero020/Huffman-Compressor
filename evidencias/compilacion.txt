@@ -1,0 +1,19 @@
+rm -f huffcli demo_editor *.huf *.tmp
+make -C editor clean
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+rm -rf obj editor
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+cc -Wall -Wextra -std=c11 -D_GNU_SOURCE -pthread -Iinclude -O2 -g -o huffcli src/huffman.c src/hf_concurrent.c src/file_guard.c src/huffcli.c -pthread
+cc -Wall -Wextra -std=c11 -D_GNU_SOURCE -pthread -Iinclude -O2 -g -o demo_editor src/huffman.c src/hf_concurrent.c src/file_guard.c src/demo_editor.c -pthread
+make -C editor
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+mkdir -p obj
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/comando.o src/comando.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/editor.o src/editor.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/estructura.o src/estructura.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/main.o src/main.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/huf_huffman.o ../src/huffman.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/huf_hf_concurrent.o ../src/hf_concurrent.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -c -o obj/huf_file_guard.o ../src/file_guard.c
+gcc -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -o editor obj/comando.o obj/editor.o obj/estructura.o obj/main.o obj/huf_huffman.o obj/huf_hf_concurrent.o obj/huf_file_guard.o -pthread
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'

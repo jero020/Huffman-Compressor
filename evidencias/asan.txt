@@ -1,0 +1,43 @@
+make clean
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
+rm -f huffcli demo_editor *.huf *.tmp
+make -C editor clean
+make[2]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+rm -rf obj editor
+make[2]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
+make huffcli CFLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" LDFLAGS="-pthread -fsanitize=address,undefined"
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
+cc -Wall -Wextra -std=c11 -D_GNU_SOURCE -pthread -Iinclude -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -o huffcli src/huffman.c src/hf_concurrent.c src/file_guard.c src/huffcli.c -pthread -fsanitize=address,undefined
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
+./tests/run_tests.sh ./huffcli
+OK   aleatorio.bin t=1 s=1024KB          8000000 ->    8002132 bytes  md5=916a7146fe88c92f3299502a8de3d9a1
+OK   aleatorio.bin t=8 s=1024KB          8000000 ->    8002132 bytes  md5=916a7146fe88c92f3299502a8de3d9a1
+OK   aleatorio.bin t=8 s=4KB             8000000 ->    8017700 bytes  md5=916a7146fe88c92f3299502a8de3d9a1
+OK   exacto_1MiB.bin t=1 s=1024KB        1048576 ->    1050652 bytes  md5=aa7b12be5315f25ba9ed402b87aa8d51
+OK   exacto_1MiB.bin t=8 s=1024KB        1048576 ->    1050652 bytes  md5=aa7b12be5315f25ba9ed402b87aa8d51
+OK   exacto_1MiB.bin t=8 s=4KB           1048576 ->    1052692 bytes  md5=aa7b12be5315f25ba9ed402b87aa8d51
+OK   vacio.bin t=1 s=1024KB                    0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
+OK   vacio.bin t=8 s=1024KB                    0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
+OK   vacio.bin t=8 s=4KB                       0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
+OK   texto.txt t=1 s=1024KB              4068894 ->    2291746 bytes  md5=32beb50d73db74626f4ff92c88cd9edc
+OK   texto.txt t=8 s=1024KB              4068894 ->    2291746 bytes  md5=32beb50d73db74626f4ff92c88cd9edc
+OK   texto.txt t=8 s=4KB                 4068894 ->    2300121 bytes  md5=32beb50d73db74626f4ff92c88cd9edc
+OK   un_byte.txt t=1 s=1024KB                  1 ->       2077 bytes  md5=0cc175b9c0f1b6a831c399e269772661
+OK   un_byte.txt t=8 s=1024KB                  1 ->       2077 bytes  md5=0cc175b9c0f1b6a831c399e269772661
+OK   un_byte.txt t=8 s=4KB                     1 ->       2077 bytes  md5=0cc175b9c0f1b6a831c399e269772661
+OK   un_simbolo.txt t=1 s=1024KB         3000000 ->     377092 bytes  md5=99ddc9a3a46ea62c95652bdf937a1fb8
+OK   un_simbolo.txt t=8 s=1024KB         3000000 ->     377092 bytes  md5=99ddc9a3a46ea62c95652bdf937a1fb8
+OK   un_simbolo.txt t=8 s=4KB            3000000 ->     382932 bytes  md5=99ddc9a3a46ea62c95652bdf937a1fb8
+OK   determinismo (1 vs 8 hilos)
+OK   archivo corrupto rechazado
+-----
+TODAS LAS PRUEBAS PASARON
+make clean
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
+rm -f huffcli demo_editor *.huf *.tmp
+make -C editor clean
+make[2]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+rm -rf obj editor
+make[2]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'

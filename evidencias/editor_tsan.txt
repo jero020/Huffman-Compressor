@@ -1,0 +1,92 @@
+make: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+make clean
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+rm -rf obj editor
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+make CFLAGS="-Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread" LDFLAGS="-pthread -fsanitize=thread"
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+mkdir -p obj
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/comando.o src/comando.c
+src/comando.c: In function ‘modo_comando_p’:
+src/comando.c:109:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  109 |             write(STDOUT_FILENO, msg, strlen(msg));
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/comando.c:117:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  117 |             write(STDOUT_FILENO, num, nlen);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/comando.c:118:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  118 |             write(STDOUT_FILENO, buffer, strlen(buffer));
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/comando.c:119:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  119 |             write(STDOUT_FILENO, "\n", 1);
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/comando.c:131:9: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  131 |         write(STDOUT_FILENO, buffer, strlen(buffer));
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/comando.c:132:9: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  132 |         write(STDOUT_FILENO, "\n", 1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/editor.o src/editor.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/estructura.o src/estructura.c
+src/estructura.c: In function ‘estructura_guardar_archivo’:
+src/estructura.c:108:9: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  108 |         write(fd, buffer, len + 1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/main.o src/main.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/huf_huffman.o ../src/huffman.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/huf_hf_concurrent.o ../src/hf_concurrent.c
+gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/huf_file_guard.o ../src/file_guard.c
+gcc -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -o editor obj/comando.o obj/editor.o obj/estructura.o obj/main.o obj/huf_huffman.o obj/huf_hf_concurrent.o obj/huf_file_guard.o -pthread -fsanitize=thread
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+./pruebas_concurrencia.sh
+Documento de prueba: 49050000 bytes, 450000 lineas
+
+----------------------------------------------------------------
+1-2. Compresion en segundo plano + edicion concurrente (condicion de carrera)
+----------------------------------------------------------------
+  [OK]    la compresion arranca en segundo plano
+  [OK]    la edicion durante la compresion se difiere (no bloquea la UI)
+  [OK]    se muestra el progreso en tiempo real
+  [OK]    la compresion termina
+  [OK]    el guardado pendiente se ejecuta al terminar
+  [OK]    el cambio del usuario quedo en disco (no se perdio)
+  [OK]    el .huf corresponde EXACTAMENTE a la version al iniciar (md5 2463d744fc79f6e852cbb9a8a904c828)
+
+----------------------------------------------------------------
+3. Descompresion en segundo plano desde el editor ('x')
+----------------------------------------------------------------
+  [OK]    la descompresion termina
+  [OK]    restaurado == original (cmp, md5 2463d744fc79f6e852cbb9a8a904c828)
+
+----------------------------------------------------------------
+4. Cancelacion con 'k'
+----------------------------------------------------------------
+  [OK]    la tarea se reporta como cancelada
+  [OK]    no quedan archivos a medias (.huf ni .huf.tmp)
+
+----------------------------------------------------------------
+5. Ctrl+C (SIGINT) durante la compresion
+----------------------------------------------------------------
+  [OK]    SIGINT cancela la tarea
+  [OK]    la tarea queda cancelada
+  [OK]    el editor sigue vivo y atiende comandos despues de la senal
+  [OK]    el editor termina normalmente (exit 0)
+  [OK]    no queda .huf.tmp
+
+----------------------------------------------------------------
+6. Protecciones mientras hay una tarea en curso
+----------------------------------------------------------------
+  [OK]    no se puede abrir otro archivo con una tarea en curso
+  [OK]    no se lanzan dos tareas a la vez
+  [OK]    no se descomprime sobre el documento abierto
+  [OK]    no se comprime sobre el mismo documento
+  [OK]    un .huf inexistente se reporta como error sin crashear
+
+----------------------------------------------------------------
+RESUMEN: 21 prueba(s) exitosa(s), 0 fallida(s)
+----------------------------------------------------------------
+make clean
+make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+rm -rf obj editor
+make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
+make: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
