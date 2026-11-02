@@ -1,8 +1,10 @@
 # Medicion de speedup
 
+> **Nota:** esta medicion usa 3 repeticiones en secuencia y es sensible al ruido de la maquina, que llego a frenarse hasta unas 3 veces en otras corridas. Los valores mas fiables estan en `topologia.md`.
+
 - Comando: `./huffcli -c /tmp/grande.txt /tmp/grande.huf -t N`
 - Archivo: 200000000 bytes (`yes "Sistemas Operativos EAFIT compresion Huffman concurrente" | head -c 200000000`), en `/tmp` (tmpfs)
-- Nucleos de la VM (`nproc`): 11
+- CPU segun `lscpu`: 12 CPUs logicas (6 nucleos × 2 hilos). `nproc` da 11 (afinidad del proceso `0-10`)
 - Tiempo de reloj (wall clock), promedio de 3 repeticiones
 - Descompresion verificada con `./huffcli -d` + `cmp` para cada N: identica
 
