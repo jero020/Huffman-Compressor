@@ -1,0 +1,6 @@
+huffcli
+demo_editor
+*.huf
+*.tmp
+*.o
+*.restaurado
