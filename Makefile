@@ -6,7 +6,7 @@ LDFLAGS ?= -pthread
 LIB_SRC = src/huffman.c src/hf_concurrent.c src/file_guard.c
 LIB_HDR = include/huffman.h include/hf_concurrent.h include/file_guard.h
 
-all: huffcli demo_editor editor
+all: huffcli editor
 
 # Editor del Parcial 1 con el compresor integrado (ver editor/)
 editor:
@@ -14,9 +14,6 @@ editor:
 
 huffcli: $(LIB_SRC) src/huffcli.c $(LIB_HDR)
 	$(CC) $(BASE) $(CFLAGS) -o $@ $(LIB_SRC) src/huffcli.c $(LDFLAGS)
-
-demo_editor: $(LIB_SRC) src/demo_editor.c $(LIB_HDR)
-	$(CC) $(BASE) $(CFLAGS) -o $@ $(LIB_SRC) src/demo_editor.c $(LDFLAGS)
 
 # Pruebas de integridad (cmp + md5sum) y determinismo entre # de hilos
 test: huffcli
@@ -45,7 +42,7 @@ valgrind: huffcli
 	valgrind --tool=helgrind --error-exitcode=1 ./huffcli -c /tmp/hf_vg.bin /tmp/hf_vg.huf -t 4 -s 256
 
 clean:
-	rm -f huffcli demo_editor *.huf *.tmp
+	rm -f huffcli *.huf *.tmp
 	$(MAKE) -C editor clean
 
 .PHONY: all editor test tsan asan valgrind clean

@@ -73,23 +73,7 @@ struct hf_job {
     const char *phase;
     uint64_t    done, total;
     char        message[256];
-    double      t_conteo, t_arbol, t_codificacion;   /* segundos por fase */
 };
-
-static double now_s(void)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
-}
-
-/* field debe ser uno de los t_* de j. No despierta a la UI: no es progreso. */
-static void job_set_time(hf_job_t *j, double *field, double secs)
-{
-    pthread_mutex_lock(&j->mtx);
-    *field = secs;
-    pthread_mutex_unlock(&j->mtx);
-}
 
 static void job_set_phase(hf_job_t *j, const char *phase)
 {
@@ -134,9 +118,6 @@ static void fill_status(hf_job_t *j, hf_status_t *st)
     else if (j->total == 0)        st->percent = 0;
     else                           st->percent = (int)(j->done * 100 / j->total);
     memcpy(st->message, j->message, sizeof st->message);
-    st->t_conteo = j->t_conteo;
-    st->t_arbol = j->t_arbol;
-    st->t_codificacion = j->t_codificacion;
 }
 
 /* ------------------------------------------------------------------ */
@@ -445,7 +426,6 @@ static int do_compress(pipe_ctx_t *c, const char *tmp_path)
 {
     hf_job_t *j = c->job;
     struct stat stbuf;
-    double t0 = now_s();
 
     c->in_fd = open(j->in_path, O_RDONLY);
     if (c->in_fd < 0) { pipe_abort(c, "no se pudo abrir el archivo de entrada"); return -1; }
@@ -469,15 +449,11 @@ static int do_compress(pipe_ctx_t *c, const char *tmp_path)
         join_workers(tids, created);              /* barrera entre fases */
         if (c->abort) return -1;
     }
-    double t1 = now_s();
-    job_set_time(j, &j->t_conteo, t1 - t0);
 
     /* Árbol global: un solo hilo (coordinador), luego es de solo lectura. */
     c->tree = malloc(sizeof *c->tree);
     if (!c->tree) { pipe_abort(c, "sin memoria (árbol)"); return -1; }
     hf_tree_build(c->tree, c->freq);
-    double t2 = now_s();
-    job_set_time(j, &j->t_arbol, t2 - t1);
 
     c->out_fd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (c->out_fd < 0) { pipe_abort(c, "no se pudo crear el archivo de salida"); return -1; }
@@ -492,9 +468,7 @@ static int do_compress(pipe_ctx_t *c, const char *tmp_path)
 
     /* Fase 2: codificación concurrente + escritura ordenada */
     job_set_phase(j, "codificacion");
-    int rc = run_pipeline(c, encode_chunk, 1);
-    job_set_time(j, &j->t_codificacion, now_s() - t2);
-    return rc;
+    return run_pipeline(c, encode_chunk, 1);
 }
 
 static int do_decompress(pipe_ctx_t *c, const char *tmp_path)
@@ -502,7 +476,6 @@ static int do_decompress(pipe_ctx_t *c, const char *tmp_path)
     hf_job_t *j = c->job;
     struct stat stbuf;
     uint8_t hdr[HF_HEADER_SIZE];
-    double t0 = now_s();
 
     c->in_fd = open(j->in_path, O_RDONLY);
     if (c->in_fd < 0) { pipe_abort(c, "no se pudo abrir el archivo comprimido"); return -1; }
@@ -531,8 +504,6 @@ static int do_decompress(pipe_ctx_t *c, const char *tmp_path)
     c->tree = malloc(sizeof *c->tree);
     if (!c->tree) { pipe_abort(c, "sin memoria (árbol)"); return -1; }
     hf_tree_build(c->tree, c->freq);
-    double t2 = now_s();                 /* sin fase de conteo: t_conteo queda en 0 */
-    job_set_time(j, &j->t_arbol, t2 - t0);
 
     /* Índice de bloques: recorrido secuencial y barato de las cabeceras
      * (8 bytes c/u) para luego decodificar los bloques en paralelo. */
@@ -566,9 +537,7 @@ static int do_decompress(pipe_ctx_t *c, const char *tmp_path)
     if (c->out_fd < 0) { pipe_abort(c, "no se pudo crear el archivo de salida"); return -1; }
 
     job_set_phase(j, "decodificacion");
-    int rc = run_pipeline(c, decode_chunk, 0);
-    job_set_time(j, &j->t_codificacion, now_s() - t2);
-    return rc;
+    return run_pipeline(c, decode_chunk, 0);
 }
 
 static void *coordinator_main(void *arg)

@@ -12,14 +12,14 @@ Parcial 2 de Sistemas Operativos (Universidad EAFIT), Alternativa 1.
 ## Compilar y usar
 
 ```
-make                                   # compila huffcli, demo_editor y editor/editor
+make                                   # compila huffcli y editor/editor
 ./editor/editor documento.txt          # editor con compresión en segundo plano
 ./huffcli -c archivo.txt archivo.huf   # comprimir desde la terminal
 ./huffcli -d archivo.huf salida.txt    # descomprimir
 ```
 
 Opciones de `huffcli`: `-t N` número de hilos (por defecto, los núcleos disponibles),
-`-s KB` tamaño de bloque (por defecto 1024), `-v` tiempo de cada fase. Ctrl+C cancela sin dejar
+`-s KB` tamaño de bloque (por defecto 1024). Ctrl+C cancela sin dejar
 archivos a medias.
 
 ### Comandos del editor
@@ -56,11 +56,10 @@ include/hf_concurrent.h   API asíncrona: iniciar, consultar progreso, cancelar 
 include/file_guard.h      cerrojo lectores/escritor que protege el archivo del editor
 src/hf_concurrent.c       motor concurrente: pool de hilos, ventana y escritor ordenado
 src/huffcli.c             programa de terminal con barra de progreso
-src/demo_editor.c         ejemplo mínimo de integración
 editor/src/               editor del Parcial 1 con el compresor integrado
 tests/run_tests.sh        pruebas de integridad del compresor
 editor/pruebas_*.sh       pruebas del editor (Parcial 1) y de concurrencia (Parcial 2)
-evidencias/               salidas de las pruebas y mediciones de rendimiento
+evidencias/               salidas de las pruebas
 ```
 
 ---
@@ -109,7 +108,7 @@ evidencias/               salidas de las pruebas y mediciones de rendimiento
 | `pipe->mtx` | `next_task`, `next_write`, `slots[]`, `freq[]`, `abort` | — | — |
 | `pipe->cv_space` | "hay una ranura libre en la ventana" | trabajadores | el escritor, tras escribir un bloque |
 | `pipe->cv_ready` | "la ranura `next_write` está lista" | el escritor | el trabajador que deposita ese bloque |
-| `file_guard` (mutex + cv) | el archivo del documento en disco | `file_guard_write_acquire` | `read_release`, `write_release` |
+| `file_guard` (mutex + contadores) | el archivo del documento en disco | nadie: `try_read`/`try_write` no bloquean | — |
 
 - **Sin espera activa:** los hilos duermen en `pthread_cond_wait`, el editor en `poll()` y el
   progreso se consulta con `pthread_cond_timedwait`. Toda espera está dentro de un `while`.
@@ -191,7 +190,7 @@ Las salidas completas están en `evidencias/`.
 ## Rendimiento
 
 Archivo de 200 MB, mediana de 10 rondas en orden aleatorio, en una VM con 12 CPUs lógicas
-(6 núcleos × 2 hilos según `lscpu`). Detalle en `evidencias/topologia.md` y `evidencias/fases.md`.
+(6 núcleos × 2 hilos según `lscpu`).
 
 | Hilos | Speedup | Eficiencia |
 |---|---|---|
@@ -202,7 +201,7 @@ Archivo de 200 MB, mediana de 10 rondas en orden aleatorio, en una VM con 12 CPU
 | 8 | 5.16× | 0.65 |
 
 La ganancia se detiene a partir de 6 hilos, también en la fase de conteo, que no usa el escritor
-ordenado. Construir el árbol tarda unos 13 µs y no influye. El límite coincide con los 6 núcleos
+ordenado. El límite coincide con los 6 núcleos
 físicos, pero la causa no se aisló: la VM no permite controlar dónde corren los hilos, y también
 pueden influir el ancho de banda de memoria o los límites de potencia.
 

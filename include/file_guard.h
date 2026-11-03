@@ -1,7 +1,7 @@
 /*
  * file_guard.h - Protección del archivo del editor frente a accesos concurrentes.
  *
- * Es un cerrojo lectores/escritor construido con mutex + variable de condición
+ * Es un cerrojo lectores/escritor construido con un mutex y contadores
  * (en lugar de pthread_rwlock) por una razón concreta: el cerrojo se ADQUIERE
  * en el hilo de la interfaz (al iniciar la compresión) y se LIBERA en el hilo
  * coordinador del trabajo cuando termina. POSIX dice que desbloquear un
@@ -21,7 +21,6 @@
 
 typedef struct {
     pthread_mutex_t mtx;
-    pthread_cond_t  cv;
     int readers;   /* número de lectores activos */
     int writer;    /* 1 si hay un escritor activo */
 } file_guard_t;
@@ -33,9 +32,6 @@ int  file_guard_try_read(file_guard_t *g);    /* 0 o EBUSY */
 void file_guard_read_release(file_guard_t *g);
 
 int  file_guard_try_write(file_guard_t *g);   /* 0 o EBUSY */
-void file_guard_write_acquire(file_guard_t *g); /* bloqueante (sin espera activa) */
 void file_guard_write_release(file_guard_t *g);
-
-int  file_guard_is_busy(file_guard_t *g);
 
 #endif

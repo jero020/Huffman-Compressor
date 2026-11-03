@@ -37,7 +37,6 @@ typedef struct {
     const char *phase;        /* "iniciando", "conteo", "codificacion", ... */
     uint64_t    done, total;  /* unidades de trabajo (bloques procesados) */
     char        message[256]; /* mensaje de error o resumen final */
-    double      t_conteo, t_arbol, t_codificacion; /* segundos por fase (0 si no aplica o aún no termina) */
 } hf_status_t;
 
 typedef struct hf_job hf_job_t;

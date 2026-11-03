@@ -1,8 +1,8 @@
 /*
  * huffcli.c - Interfaz de línea de comandos del compresor concurrente.
  *
- *   ./huffcli -c entrada salida.huf [-t hilos] [-s KB_por_bloque] [-v]
- *   ./huffcli -d entrada.huf salida [-t hilos] [-v]
+ *   ./huffcli -c entrada salida.huf [-t hilos] [-s KB_por_bloque]
+ *   ./huffcli -d entrada.huf salida [-t hilos]
  *
  * Manejo de señales: SIGINT/SIGTERM se BLOQUEAN en todos los hilos y un
  * hilo dedicado las recibe con sigwait(). Así la señal nunca interrumpe a
@@ -51,8 +51,8 @@ static void draw_bar(const hf_status_t *st)
 static void usage(const char *p)
 {
     fprintf(stderr,
-            "Uso: %s -c|-d ENTRADA SALIDA [-t hilos] [-s KB_por_bloque] [-v]\n"
-            "  -c  comprimir    -d  descomprimir    -v  imprimir tiempos por fase\n", p);
+            "Uso: %s -c|-d ENTRADA SALIDA [-t hilos] [-s KB_por_bloque]\n"
+            "  -c  comprimir    -d  descomprimir\n", p);
 }
 
 int main(int argc, char **argv)
@@ -67,11 +67,9 @@ int main(int argc, char **argv)
     const char *in = argv[2], *out = argv[3];
     int threads = 0;
     size_t chunk = 0;
-    int verbose = 0;
     for (int i = 4; i < argc; i++) {
         if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) threads = atoi(argv[++i]);
         else if (strcmp(argv[i], "-s") == 0 && i + 1 < argc) chunk = (size_t)atol(argv[++i]) * 1024;
-        else if (strcmp(argv[i], "-v") == 0) verbose = 1;
         else { usage(argv[0]); return 2; }
     }
 
@@ -129,9 +127,5 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_MONOTONIC, &t1);
     double secs = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
     fprintf(stderr, "%s (%.3f s)\n", st.message, secs);
-    if (verbose && final == HF_STATE_DONE)
-        fprintf(stderr, "Tiempos: conteo %.6f s | arbol %.6f s | %s %.6f s\n",
-                st.t_conteo, st.t_arbol,
-                op == HF_OP_COMPRESS ? "codificacion" : "decodificacion", st.t_codificacion);
     return final == HF_STATE_DONE ? 0 : (final == HF_STATE_CANCELLED ? 130 : 1);
 }
