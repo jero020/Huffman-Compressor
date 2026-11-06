@@ -1,10 +1,9 @@
-rm -f huffcli demo_editor *.huf *.tmp
+rm -f huffcli *.huf *.tmp
 make -C editor clean
 make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
 rm -rf obj editor
 make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
 cc -Wall -Wextra -std=c11 -D_GNU_SOURCE -pthread -Iinclude -O2 -g -o huffcli src/huffman.c src/hf_concurrent.c src/file_guard.c src/huffcli.c -pthread
-cc -Wall -Wextra -std=c11 -D_GNU_SOURCE -pthread -Iinclude -O2 -g -o demo_editor src/huffman.c src/hf_concurrent.c src/file_guard.c src/demo_editor.c -pthread
 make -C editor
 make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
 mkdir -p obj

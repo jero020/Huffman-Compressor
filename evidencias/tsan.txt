@@ -1,6 +1,6 @@
 make clean
 make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
-rm -f huffcli demo_editor *.huf *.tmp
+rm -f huffcli *.huf *.tmp
 make -C editor clean
 make[2]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
 rm -rf obj editor
@@ -11,12 +11,12 @@ make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compre
 cc -Wall -Wextra -std=c11 -D_GNU_SOURCE -pthread -Iinclude -O1 -g -fsanitize=thread -o huffcli src/huffman.c src/hf_concurrent.c src/file_guard.c src/huffcli.c -pthread -fsanitize=thread
 make[1]: Leaving directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
 ./tests/run_tests.sh ./huffcli
-OK   aleatorio.bin t=1 s=1024KB          8000000 ->    8002132 bytes  md5=9c1c9edfabb92285a8d14ff8a6121b81
-OK   aleatorio.bin t=8 s=1024KB          8000000 ->    8002132 bytes  md5=9c1c9edfabb92285a8d14ff8a6121b81
-OK   aleatorio.bin t=8 s=4KB             8000000 ->    8017700 bytes  md5=9c1c9edfabb92285a8d14ff8a6121b81
-OK   exacto_1MiB.bin t=1 s=1024KB        1048576 ->    1050652 bytes  md5=8b456219c7c0264e45b614fbdde1ed36
-OK   exacto_1MiB.bin t=8 s=1024KB        1048576 ->    1050652 bytes  md5=8b456219c7c0264e45b614fbdde1ed36
-OK   exacto_1MiB.bin t=8 s=4KB           1048576 ->    1052692 bytes  md5=8b456219c7c0264e45b614fbdde1ed36
+OK   aleatorio.bin t=1 s=1024KB          8000000 ->    8002132 bytes  md5=9c802c65c81ccd58612b69f08b638c7f
+OK   aleatorio.bin t=8 s=1024KB          8000000 ->    8002132 bytes  md5=9c802c65c81ccd58612b69f08b638c7f
+OK   aleatorio.bin t=8 s=4KB             8000000 ->    8017700 bytes  md5=9c802c65c81ccd58612b69f08b638c7f
+OK   exacto_1MiB.bin t=1 s=1024KB        1048576 ->    1050652 bytes  md5=8f64036caa8e7e2faf7bcc1d638aa0ba
+OK   exacto_1MiB.bin t=8 s=1024KB        1048576 ->    1050652 bytes  md5=8f64036caa8e7e2faf7bcc1d638aa0ba
+OK   exacto_1MiB.bin t=8 s=4KB           1048576 ->    1052692 bytes  md5=8f64036caa8e7e2faf7bcc1d638aa0ba
 OK   vacio.bin t=1 s=1024KB                    0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
 OK   vacio.bin t=8 s=1024KB                    0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
 OK   vacio.bin t=8 s=4KB                       0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
@@ -35,7 +35,7 @@ OK   archivo corrupto rechazado
 TODAS LAS PRUEBAS PASARON
 make clean
 make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman'
-rm -f huffcli demo_editor *.huf *.tmp
+rm -f huffcli *.huf *.tmp
 make -C editor clean
 make[2]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
 rm -rf obj editor

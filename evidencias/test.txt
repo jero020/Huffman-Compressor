@@ -1,10 +1,10 @@
 ./tests/run_tests.sh ./huffcli
-OK   aleatorio.bin t=1 s=1024KB          8000000 ->    8002132 bytes  md5=6cc5bd2fe86f56ae3dbf12af6db46f50
-OK   aleatorio.bin t=8 s=1024KB          8000000 ->    8002132 bytes  md5=6cc5bd2fe86f56ae3dbf12af6db46f50
-OK   aleatorio.bin t=8 s=4KB             8000000 ->    8017700 bytes  md5=6cc5bd2fe86f56ae3dbf12af6db46f50
-OK   exacto_1MiB.bin t=1 s=1024KB        1048576 ->    1050652 bytes  md5=e662715aaa70a83e46fd5fe7289d3cff
-OK   exacto_1MiB.bin t=8 s=1024KB        1048576 ->    1050652 bytes  md5=e662715aaa70a83e46fd5fe7289d3cff
-OK   exacto_1MiB.bin t=8 s=4KB           1048576 ->    1052692 bytes  md5=e662715aaa70a83e46fd5fe7289d3cff
+OK   aleatorio.bin t=1 s=1024KB          8000000 ->    8002132 bytes  md5=0765436fe78e3a4b7c42a2a396d78e2c
+OK   aleatorio.bin t=8 s=1024KB          8000000 ->    8002132 bytes  md5=0765436fe78e3a4b7c42a2a396d78e2c
+OK   aleatorio.bin t=8 s=4KB             8000000 ->    8017700 bytes  md5=0765436fe78e3a4b7c42a2a396d78e2c
+OK   exacto_1MiB.bin t=1 s=1024KB        1048576 ->    1050652 bytes  md5=bb3d4b49d1b8a4804941f1839767a563
+OK   exacto_1MiB.bin t=8 s=1024KB        1048576 ->    1050652 bytes  md5=bb3d4b49d1b8a4804941f1839767a563
+OK   exacto_1MiB.bin t=8 s=4KB           1048576 ->    1052692 bytes  md5=bb3d4b49d1b8a4804941f1839767a563
 OK   vacio.bin t=1 s=1024KB                    0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
 OK   vacio.bin t=8 s=1024KB                    0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e
 OK   vacio.bin t=8 s=4KB                       0 ->       2068 bytes  md5=d41d8cd98f00b204e9800998ecf8427e

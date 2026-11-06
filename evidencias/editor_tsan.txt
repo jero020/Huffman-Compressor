@@ -7,29 +7,29 @@ make CFLAGS="-Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsa
 make[1]: Entering directory '/home/jerovelez/Sistemas-Operativos-Trabajos/Compresor_Huffman/editor'
 mkdir -p obj
 gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/comando.o src/comando.c
-src/comando.c: In function ‘modo_comando_p’:
-src/comando.c:109:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/comando.c: In function 'modo_comando_p':
+src/comando.c:109:13: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   109 |             write(STDOUT_FILENO, msg, strlen(msg));
       |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-src/comando.c:117:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/comando.c:117:13: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   117 |             write(STDOUT_FILENO, num, nlen);
       |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-src/comando.c:118:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/comando.c:118:13: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   118 |             write(STDOUT_FILENO, buffer, strlen(buffer));
       |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-src/comando.c:119:13: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/comando.c:119:13: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   119 |             write(STDOUT_FILENO, "\n", 1);
       |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-src/comando.c:131:9: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/comando.c:131:9: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   131 |         write(STDOUT_FILENO, buffer, strlen(buffer));
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-src/comando.c:132:9: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/comando.c:132:9: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   132 |         write(STDOUT_FILENO, "\n", 1);
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/editor.o src/editor.c
 gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/estructura.o src/estructura.c
-src/estructura.c: In function ‘estructura_guardar_archivo’:
-src/estructura.c:108:9: warning: ignoring return value of ‘write’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+src/estructura.c: In function 'estructura_guardar_archivo':
+src/estructura.c:108:9: warning: ignoring return value of 'write' declared with attribute 'warn_unused_result' [-Wunused-result]
   108 |         write(fd, buffer, len + 1);
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~
 gcc -Isrc -I../include -MMD -MP -Wall -Wextra -pedantic -std=c99 -D_GNU_SOURCE -pthread -O1 -g -fsanitize=thread -c -o obj/main.o src/main.c
