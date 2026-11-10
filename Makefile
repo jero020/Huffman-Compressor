@@ -6,11 +6,15 @@ LDFLAGS ?= -pthread
 LIB_SRC = src/huffman.c src/hf_concurrent.c src/file_guard.c
 LIB_HDR = include/huffman.h include/hf_concurrent.h include/file_guard.h
 
-all: huffcli editor
+all: huffcli editor shell
 
 # Editor del Parcial 1 con el compresor integrado (ver editor/)
 editor:
 	$(MAKE) -C editor
+
+# Shell del Parcial 1 (sys_shell); su comando 'editor' abre editor/editor
+shell: editor
+	$(MAKE) -C shell sys_shell
 
 huffcli: $(LIB_SRC) src/huffcli.c $(LIB_HDR)
 	$(CC) $(BASE) $(CFLAGS) -o $@ $(LIB_SRC) src/huffcli.c $(LDFLAGS)
@@ -44,5 +48,6 @@ valgrind: huffcli
 clean:
 	rm -f huffcli *.huf *.tmp
 	$(MAKE) -C editor clean
+	$(MAKE) -C shell clean
 
-.PHONY: all editor test tsan asan valgrind clean
+.PHONY: all editor shell test tsan asan valgrind clean

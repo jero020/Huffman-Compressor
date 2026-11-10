@@ -7,3 +7,5 @@ huffcli
 editor/editor
 editor/obj/
 CLAUDE.md
+shell/sys_shell
+shell/*.o

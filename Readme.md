@@ -3,7 +3,8 @@
 Compresor y descompresor de archivos con codificación de Huffman, escrito en C con `pthread`.
 El archivo se procesa por bloques en paralelo y la compresión se integra como tarea en segundo
 plano al editor de texto del Parcial 1 (`editor/`), sin congelar la interfaz y sin condiciones de
-carrera al editar mientras se comprime.
+carrera al editar mientras se comprime. El editor se sigue abriendo desde el shell del Parcial 1
+(`shell/`), igual que antes.
 
 Parcial 2 de Sistemas Operativos (Universidad EAFIT), Alternativa 1.
 
@@ -12,8 +13,9 @@ Parcial 2 de Sistemas Operativos (Universidad EAFIT), Alternativa 1.
 ## Compilar y usar
 
 ```
-make                                   # compila huffcli y editor/editor
-./editor/editor documento.txt          # editor con compresión en segundo plano
+make                                   # compila huffcli, editor/editor y shell/sys_shell
+./shell/sys_shell                      # shell del Parcial 1; ahí: editor documento.txt
+./editor/editor documento.txt          # o abrir el editor directamente
 ./huffcli -c archivo.txt archivo.huf   # comprimir desde la terminal
 ./huffcli -d archivo.huf salida.txt    # descomprimir
 ```
@@ -21,6 +23,17 @@ make                                   # compila huffcli y editor/editor
 Opciones de `huffcli`: `-t N` número de hilos (por defecto, los núcleos disponibles),
 `-s KB` tamaño de bloque (por defecto 1024). Ctrl+C cancela sin dejar
 archivos a medias.
+
+### Desde el shell
+
+`sys_shell` conserva todos sus comandos del Parcial 1 (`help`, `d_create`, `d_read`, `m_sbrk`,
+`p_fork`, `p_exec`, `hora`, …). El comando `editor <archivo>` abre el editor con `fork` + `execvp`
+y espera con `waitpid`; al salir del editor con `q` se vuelve al prompt `sys-shell>`.
+
+Mientras el editor está abierto, el shell **ignora Ctrl+C** (`sigaction` con `SIG_IGN`), como
+hacen bash o sh con el programa en primer plano. Así Ctrl+C solo cancela la compresión en el
+editor y no cierra el shell. El hijo restaura el comportamiento por defecto antes del `execvp`,
+porque una señal ignorada se hereda a través de exec.
 
 ### Comandos del editor
 
@@ -57,8 +70,10 @@ include/file_guard.h      cerrojo lectores/escritor que protege el archivo del e
 src/hf_concurrent.c       motor concurrente: pool de hilos, ventana y escritor ordenado
 src/huffcli.c             programa de terminal con barra de progreso
 editor/src/               editor del Parcial 1 con el compresor integrado
+shell/                    shell del Parcial 1 (sys_shell); su comando 'editor' abre editor/editor
 tests/run_tests.sh        pruebas de integridad del compresor
 editor/pruebas_*.sh       pruebas del editor (Parcial 1) y de concurrencia (Parcial 2)
+shell/pruebas_shell.sh    pruebas de la cadena shell -> editor -> compresión
 evidencias/               salidas de las pruebas
 ```
 
@@ -169,6 +184,7 @@ por cada bloque: u32 bytes_originales | u32 bytes_codificados | datos...
 ```
 make test             # integridad del compresor
 make -C editor test   # pruebas del editor (Parcial 1) y de concurrencia
+make -C shell test    # shell -> editor -> compresión, incluido Ctrl+C
 make tsan             # ThreadSanitizer sobre el compresor
 make -C editor tsan   # ThreadSanitizer sobre el editor
 make asan             # AddressSanitizer
@@ -180,6 +196,7 @@ make valgrind         # memcheck y helgrind
 | Integridad (`cmp` + `md5sum`): archivo vacío, 1 byte, un solo símbolo, texto, binario aleatorio, múltiplo exacto del bloque; con 1 y 8 hilos | Todas idénticas; un archivo corrupto se rechaza sin fallar |
 | Editor: pruebas originales del Parcial 1 | 23 de 23 |
 | Editor: concurrencia (edición durante la compresión, cancelación, SIGINT, protecciones) | 21 de 21 |
+| Shell: comandos del Parcial 1, abrir el editor, comprimir y volver; Ctrl+C no cierra el shell | 14 de 14 |
 | ThreadSanitizer y Helgrind | 0 reportes |
 | AddressSanitizer y Valgrind | 0 errores, 0 bytes en uso al salir |
 
