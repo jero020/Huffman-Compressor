@@ -13,7 +13,7 @@ editor:
 	$(MAKE) -C editor
 
 # Shell del Parcial 1 (sys_shell); su comando 'editor' abre editor/editor
-shell: editor
+shell: editor huffcli
 	$(MAKE) -C shell sys_shell
 
 huffcli: $(LIB_SRC) src/huffcli.c $(LIB_HDR)

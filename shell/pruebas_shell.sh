@@ -73,6 +73,38 @@ if [[ "${OUT##*Editor cerrado}" == *"[syscall] time"* ]]; then ok "el shell atie
 else fallo "el shell no atendio comandos despues de Ctrl+C"; fi
 [[ ! -e "$DOC.huf.tmp" ]] && ok "no queda .huf.tmp" || fallo "quedo .huf.tmp"
 
+echo "4. comprimir / descomprimir desde el shell"
+OUT=$( { echo "comprimir $DOC"; sleep 4; echo "descomprimir $DOC.huf $W/vuelta.txt -t 4"; sleep 4;
+         echo "comprimir"; sleep 0.2; echo "help compresion"; sleep 0.2; echo "exit"; } | ./sys_shell 2>&1 )
+contiene "comprimir lanza huffcli con fork + execvp" "Comprimiendo '$DOC' -> '$DOC.huf'" "$OUT"
+contiene "la compresion termina bien" "Listo." "$OUT"
+if cmp -s "$DOC" "$W/vuelta.txt"; then ok "descomprimir devuelve un archivo identico (cmp)"; else fallo "el archivo descomprimido no es identico"; fi
+contiene "comprimir sin argumentos muestra el uso" "Uso: comprimir" "$OUT"
+contiene "help compresion lista los comandos" "descomprimir" "$OUT"
+
+echo "5. Ctrl+C durante 'comprimir' desde el shell"
+GRANDE="$W/grande.txt"
+yes "Sistemas Operativos EAFIT compresion Huffman concurrente" 2>/dev/null | head -c 200000000 > "$GRANDE"
+mkfifo "$W/entrada2"
+setsid ./sys_shell < "$W/entrada2" > "$W/sig2.out" 2>&1 &
+exec 4> "$W/entrada2"
+sleep 0.3
+SHELL_PID=$(pgrep -n -f "^./sys_shell$" || true)
+PGID=$(ps -o pgid= -p "$SHELL_PID" | tr -d ' ')
+echo "comprimir $GRANDE -t 1" >&4 2>/dev/null
+sleep 0.8                              # a mitad de la compresion
+kill -INT -- "-$PGID"
+sleep 1
+echo "hora" >&4 2>/dev/null; sleep 0.3
+if kill -0 "$SHELL_PID" 2>/dev/null; then ok "el shell sobrevive a Ctrl+C durante comprimir"; else fallo "Ctrl+C cerro el shell"; fi
+echo "exit" >&4 2>/dev/null; exec 4>&- 2>/dev/null
+wait 2>/dev/null
+OUT=$(cat "$W/sig2.out")
+contiene "huffcli se cancela" "Cancelado con Ctrl+C" "$OUT"
+if [[ "${OUT##*Cancelado con Ctrl+C}" == *"[syscall] time"* ]]; then ok "el shell atiende comandos despues de cancelar"
+else fallo "el shell no atendio comandos despues de cancelar"; fi
+[[ ! -e "$GRANDE.huf" && ! -e "$GRANDE.huf.tmp" ]] && ok "no quedan archivos a medias" || fallo "quedaron archivos a medias"
+
 echo "-----"
 echo "RESUMEN: $PASS prueba(s) exitosa(s), $FAIL fallida(s)"
 [[ $FAIL -eq 0 ]]

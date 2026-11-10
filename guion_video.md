@@ -3,7 +3,7 @@
 
 Guion para grabar hablando natural, no leyendo palabra por palabra. Cada bloque trae el tiempo
 sugerido, lo que dices entre comillas, y entre corchetes `[...]` lo que se ve en pantalla. Los tiempos
-suman unos 6:50.
+suman unos 7 minutos.
 
 ---
 
@@ -12,42 +12,47 @@ suman unos 6:50.
 **[Pantalla: `Readme.md` del repo, en el título]**
 
 "Hola, somos [nombres del equipo] y esta es la sustentación del Parcial 2 de Sistemas Operativos.
-Elegimos la Alternativa 1: un compresor Huffman que trabaja con varios hilos y está integrado al
-editor del Parcial 1. El reto era aprovechar varios núcleos, no congelar el editor mientras comprime
-y evitar condiciones de carrera si el usuario edita el archivo durante la compresión. Todo está en C
-con pthreads: mutex, variables de condición y un cerrojo de lectores y escritor propio."
+Hicimos un programa que comprime archivos, es decir, que los hace más pequeños, usando el algoritmo
+de Huffman. Para que sea rápido, el trabajo se reparte entre varios hilos, que son como varios
+trabajadores haciendo partes de la tarea al mismo tiempo. Y lo conectamos al editor de texto y al
+shell que hicimos en el Parcial 1."
+
+"Teníamos tres metas: que fuera más rápido al usar varios hilos, que el editor no se quedara congelado
+mientras comprime, y que no se dañara nada si el usuario sigue escribiendo mientras tanto."
 
 ---
 
-## 2. Arquitectura (0:30 – 1:45)
+## 2. Cómo funciona (0:30 – 1:45)
 
 **[Pantalla: diagrama de la sección "Cómo funciona" del `Readme.md`]**
 
-"Hay tres tipos de hilo: el del editor, un coordinador por trabajo y un grupo de trabajadores. Cuando
-pido comprimir, el editor crea el coordinador y vuelve de inmediato a atender comandos."
+"Cuando el usuario pide comprimir, el editor no hace el trabajo él mismo: se lo pasa a un hilo
+coordinador y sigue atendiendo al usuario. El coordinador reparte el trabajo entre varios hilos
+trabajadores."
 
-"El archivo se divide en bloques de un mega. En la primera fase cada trabajador cuenta los caracteres
-de su bloque en una tabla propia, sin lock, y la suma a la tabla global una sola vez por bloque. Eso
-es una reducción local."
+"El archivo se parte en pedazos de un mega, y cada trabajador toma un pedazo. Primero cuentan cuántas
+veces aparece cada letra. Cada uno lleva su propia cuenta y solo al final la suma al total, así no se
+estorban entre ellos."
 
-"Después el coordinador construye el árbol, que tarda unos trece microsegundos y desde ahí es de solo
-lectura. En la segunda fase los trabajadores codifican en paralelo, pero terminan en cualquier orden.
-Por eso usamos un productor–consumidor: dejan cada bloque en una ventana de tamaño fijo y el
-coordinador los escribe en orden, durmiendo en una variable de condición si el siguiente aún no está
-listo."
+"Con ese conteo se arma el árbol de Huffman, que le asigna un código corto a las letras que más se
+repiten. Después cada trabajador comprime su pedazo. El problema es que no todos terminan al mismo
+tiempo, pero los pedazos tienen que quedar en orden en el archivo final. Por eso el coordinador los va
+guardando en orden, y si el siguiente todavía no está listo, espera sin gastar procesador."
 
 ---
 
-## 3. Demo en el editor (1:45 – 3:45)
+## 3. Demo desde el shell (1:45 – 4:00)
 
 **[Pantalla: terminal en `~/Sistemas-Operativos-Trabajos/Compresor_Huffman`]**
 
 ```
-./editor/editor /tmp/demo.txt
+./shell/sys_shell
+editor /tmp/demo.txt
 ```
 
-"Este es el editor del Parcial 1 con cuatro comandos nuevos: c comprime, x descomprime, k cancela y s
-muestra el estado. Voy a comprimir y, en el mismo instante, agregar una línea."
+"Este es el shell del Parcial 1. Con el comando editor, el shell crea un proceso hijo que abre
+nuestro editor. Al editor le agregamos cuatro comandos: c para comprimir, x para descomprimir, k para
+cancelar y s para ver cómo va. Voy a comprimir y, al mismo tiempo, escribir una línea nueva."
 
 **[Pegar de una vez las dos líneas]**
 
@@ -58,17 +63,19 @@ a linea escrita mientras se comprime
 
 **[Señalar el `[c 54%] cmd>`, la barra y la palabra PENDIENTE]**
 
-"El prompt muestra el avance en tiempo real, y la línea que agregué quedó con el guardado pendiente.
-El editor guarda en disco con cada línea nueva; si lo hiciera mientras la compresión lee el archivo,
-el comprimido mezclaría dos versiones. Por eso el cambio se queda en memoria y se escribe al terminar…
-ahí está: terminó y se escribió el guardado pendiente."
+"Aquí se ve el porcentaje de avance. Y la línea que escribí dice que su guardado quedó pendiente.
+¿Por qué? Si el editor guardara el archivo mientras lo están comprimiendo, el resultado quedaría
+mezclado entre la versión vieja y la nueva. Eso es lo que se llama una condición de carrera. Entonces
+el cambio se guarda en memoria y se escribe en el disco apenas termina la compresión… y ahí está:
+terminó y se guardó."
 
 ```
 x /tmp/demo.txt.huf
 ```
 
-"Descomprimo, también en segundo plano. Y si cancelo una compresión a la mitad, no queda ningún archivo
-a medias, porque escribimos en un temporal y solo lo renombramos si todo salió bien."
+"Ahora descomprimo, también sin bloquear el editor. Y si cancelo a la mitad, no queda ningún archivo
+dañado, porque el programa escribe primero en un archivo temporal y solo al final lo pone con su
+nombre definitivo."
 
 **[Pegar de una vez las dos líneas]**
 
@@ -79,97 +86,109 @@ k
 
 ```
 q
+```
+
+"Al salir del editor con q, volvemos al shell. Desde el shell también se puede comprimir
+directamente, con el comando comprimir. Lo lanzo con un solo hilo para que tarde un poco."
+
+```
+comprimir /tmp/grande.txt -t 1
+```
+
+**[Presionar Ctrl+C a mitad de la barra, y luego escribir `hora`]**
+
+"Si presiono Control C, la compresión se cancela sin dejar archivos a medias. Y fíjense que el shell
+sigue funcionando: le pido la hora y responde. Eso es porque mientras el compresor trabaja, el shell
+ignora Control C, igual que hace la terminal normal de Linux."
+
+```
+exit
 tail -n 1 /tmp/demo.txt
 head -n 2000000 /tmp/demo.txt | md5sum
 md5sum /tmp/demo.txt.restaurado
 ```
 
-"Fuera del editor: la última línea es la que agregué, así que no se perdió, y el descomprimido tiene
-el mismo MD5 que el documento sin esa línea. El comprimido corresponde a la versión que había al
-empezar."
-
-```
-./huffcli -c /tmp/grande.txt /tmp/grande.huf -t 1
-```
-
-**[Presionar Ctrl+C a mitad de la barra]**
-
-```
-echo $?
-ls /tmp/grande.huf*
-```
-
-"Con Control C el programa cancela, une los hilos, sale con código 130 y no deja archivos."
+"Ya fuera del shell compruebo dos cosas. La última línea del documento es la que escribí, así que no
+se perdió. Y estos dos códigos son iguales: el MD5 es como una huella digital del archivo, y que
+coincidan quiere decir que el archivo descomprimido es idéntico al original."
 
 ---
 
-## 4. Código de sincronización (3:45 – 5:00)
+## 4. El código que evita los problemas (4:00 – 5:10)
 
 **[Pantalla: VS Code, `src/hf_concurrent.c`]**
 
-**[Mostrar `pipe_worker`]** "Si la ventana está llena, el trabajador duerme en `pthread_cond_wait`,
-dentro de un `while` por los despertares espurios. No hay espera activa, y el trabajo pesado se hace
-fuera del mutex."
+"Cuando varios hilos comparten información, hay que poner reglas para que no la dañen al tocarla al
+mismo tiempo. Para eso usamos un mutex, que funciona como un candado: solo un hilo puede tenerlo a la
+vez."
 
-**[Mostrar `ordered_writer`]** "El escritor espera la ranura del siguiente bloque, suelta el mutex,
-escribe a disco y despierta a los trabajadores que esperaban espacio."
+**[Mostrar `pipe_worker`]** "Aquí, si no hay espacio para dejar un pedazo terminado, el trabajador se
+pone a dormir hasta que lo avisen. No se queda preguntando una y otra vez, que gastaría procesador sin
+hacer nada útil."
 
-**[Mostrar `pipe_abort`]** "Si hay un error o una cancelación, un broadcast en las dos variables de
-condición despierta a todos: ningún hilo queda dormido para siempre."
+**[Mostrar `ordered_writer`]** "Aquí el coordinador espera el siguiente pedazo, lo guarda en el archivo
+y avisa a los trabajadores que ya hay espacio."
 
-**[Mostrar `editor_guardar` en `editor/src/editor.c`]** "En el editor, guardar intenta tomar el
-cerrojo del archivo sin bloquear; si la compresión lo tiene, el guardado queda pendiente."
+**[Mostrar `pipe_abort`]** "Si algo falla o el usuario cancela, esta parte despierta a todos los hilos
+para que terminen. Así ninguno se queda esperando para siempre."
 
-"Y no puede haber interbloqueo: ningún hilo tiene dos mutex tomados a la vez, así que no hay espera
-circular."
+**[Mostrar `editor_guardar` en `editor/src/editor.c`]** "Y en el editor, antes de guardar se revisa si
+el archivo está ocupado. Si lo está, el guardado queda pendiente en vez de esperar, por eso el editor
+nunca se congela."
+
+"Además, ningún hilo tiene dos candados al mismo tiempo. Eso evita que dos hilos se queden esperando
+el uno al otro sin fin, lo que se llama un interbloqueo."
 
 ---
 
-## 5. Pruebas (5:00 – 5:45)
+## 5. Pruebas (5:10 – 5:50)
 
 **[Pantalla: carpeta `evidencias/`, abriendo `test.txt`, `editor_test.txt`, `tsan.txt` y `valgrind.txt`]**
 
-"La prueba de integridad comprime y descomprime archivos vacíos, de un byte, de un solo carácter,
-texto y datos aleatorios, con uno y ocho hilos, y compara con `cmp` y MD5. En el editor pasan las 23
-pruebas del Parcial 1 y 21 nuevas de concurrencia. ThreadSanitizer y Helgrind no reportan
-condiciones de carrera, y Valgrind reporta cero errores y cero bytes en uso al salir."
+"Para comprobar que todo funciona, comprimimos y descomprimimos muchos tipos de archivo: vacíos, de
+un solo carácter, de texto y con datos al azar. Siempre salen idénticos al original. En el editor
+pasan las 23 pruebas del Parcial 1 y 21 pruebas nuevas, como escribir mientras se comprime o cancelar
+a la mitad. También usamos herramientas que revisan el programa mientras corre: no encontraron
+condiciones de carrera ni memoria sin liberar."
 
 ---
 
-## 6. Rendimiento (5:45 – 6:30)
+## 6. Qué tan rápido es (5:50 – 6:35)
 
 **[Pantalla: tabla de la sección "Rendimiento" del `Readme.md`]**
 
-"Con un archivo de 200 megas y la mediana de diez rondas: 3,65 veces más rápido con cuatro hilos,
-5,06 con seis y 5,16 con ocho. La ganancia se detiene en seis hilos. Medimos cada fase: el árbol no
-influye y el conteo también se frena, así que el escritor ordenado no es la causa principal. Coincide
-con los seis núcleos físicos de la máquina virtual, pero no logramos aislar la causa, así que lo
-presentamos como hipótesis."
+"Medimos con un archivo de 200 megas. Con cuatro hilos es 3,65 veces más rápido que con uno solo, con
+seis hilos 5 veces, y con ocho casi lo mismo que con seis. O sea, después de seis hilos ya no mejora.
+Medimos cada parte del programa por separado y descartamos las dos causas que sospechábamos en nuestro
+código. Coincide con que la máquina virtual tiene seis núcleos reales, pero no pudimos comprobarlo del
+todo, así que lo dejamos como una posible explicación."
 
 ---
 
-## 7. Cierre (6:30 – 6:50)
+## 7. Cierre (6:35 – 7:00)
 
 **[Pantalla: repositorio en GitHub]**
 
-"No usamos `pthread_rwlock` porque el cerrojo se toma en el hilo del editor y se libera en el
-coordinador, y POSIX no permite eso. Las limitaciones: un solo trabajo a la vez y mediciones con un
-archivo muy repetitivo. El código, las pruebas y las evidencias están en el repositorio. Gracias."
+"En resumen: el compresor reparte el trabajo entre varios hilos, se puede usar desde el shell y desde
+el editor, el editor sigue respondiendo mientras
+comprime y los cambios del usuario nunca se pierden ni dañan el archivo. Como límites, solo se puede
+hacer una compresión a la vez, y medimos con un archivo de prueba muy repetitivo. Todo el código y las
+pruebas están en el repositorio. Gracias."
 
 ---
 
 ## Checklist antes de grabar
 
 - [ ] Trabajar solo desde la VM, nunca desde la carpeta de la Mac (`~/OrbStack/...`).
-- [ ] `make clean && make` sin warnings.
+- [ ] `make clean && make` sin warnings (compila `huffcli`, el editor y `shell/sys_shell`).
 - [ ] Crear los archivos de la demo:
   ```
   yes "Sistemas Operativos EAFIT compresion Huffman concurrente" | head -n 2000000 | cat -n > /tmp/demo.txt
   yes "Sistemas Operativos EAFIT compresion Huffman concurrente" | head -c 200000000 > /tmp/grande.txt
   rm -f /tmp/demo.txt.huf /tmp/demo.txt.restaurado /tmp/grande.huf*
   ```
-- [ ] Abrir una vez `./editor/editor /tmp/demo.txt` para ver cuánto tarda en cargar, y salir con `q`.
-  Después volver a crear `/tmp/demo.txt` para que no tenga la línea de prueba.
+- [ ] Abrir una vez `./editor/editor /tmp/demo.txt` para ver cuánto tarda en cargar y salir con `q`.
+  Después volver a crear `/tmp/demo.txt` para que no tenga líneas de prueba.
 - [ ] Tener copiados los bloques de dos líneas (`c` + `a …` y `c` + `k`) para pegarlos.
 - [ ] No usar `q` justo después de `c`: cancela la compresión.
 - [ ] Cerrar programas pesados para que la compresión no se vea lenta.

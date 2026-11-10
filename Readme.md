@@ -27,12 +27,20 @@ archivos a medias.
 ### Desde el shell
 
 `sys_shell` conserva todos sus comandos del Parcial 1 (`help`, `d_create`, `d_read`, `m_sbrk`,
-`p_fork`, `p_exec`, `hora`, …). El comando `editor <archivo>` abre el editor con `fork` + `execvp`
-y espera con `waitpid`; al salir del editor con `q` se vuelve al prompt `sys-shell>`.
+`p_fork`, `p_exec`, `hora`, …) y suma la categoría `compresion`:
 
-Mientras el editor está abierto, el shell **ignora Ctrl+C** (`sigaction` con `SIG_IGN`), como
-hacen bash o sh con el programa en primer plano. Así Ctrl+C solo cancela la compresión en el
-editor y no cierra el shell. El hijo restaura el comportamiento por defecto antes del `execvp`,
+| Comando | Qué hace |
+|---|---|
+| `editor <archivo>` | Abre el editor (con compresión en segundo plano); con `q` se vuelve al shell |
+| `comprimir <archivo> [salida] [-t hilos]` | Comprime con `huffcli` (por defecto `<archivo>.huf`) |
+| `descomprimir <archivo.huf> [salida] [-t hilos]` | Descomprime (por defecto `<archivo>.restaurado`) |
+
+Los tres lanzan el programa como proceso hijo con `fork` + `execvp` y esperan con `waitpid`.
+`help compresion` y `help edicion` muestran sus detalles.
+
+Mientras el editor o el compresor corren, el shell **ignora Ctrl+C** (`sigaction` con `SIG_IGN`), como
+hacen bash o sh con el programa en primer plano. Así Ctrl+C solo cancela la compresión y no
+cierra el shell. El hijo restaura el comportamiento por defecto antes del `execvp`,
 porque una señal ignorada se hereda a través de exec.
 
 ### Comandos del editor
@@ -70,7 +78,7 @@ include/file_guard.h      cerrojo lectores/escritor que protege el archivo del e
 src/hf_concurrent.c       motor concurrente: pool de hilos, ventana y escritor ordenado
 src/huffcli.c             programa de terminal con barra de progreso
 editor/src/               editor del Parcial 1 con el compresor integrado
-shell/                    shell del Parcial 1 (sys_shell); su comando 'editor' abre editor/editor
+shell/                    shell del Parcial 1 (sys_shell) con los comandos editor, comprimir y descomprimir
 tests/run_tests.sh        pruebas de integridad del compresor
 editor/pruebas_*.sh       pruebas del editor (Parcial 1) y de concurrencia (Parcial 2)
 shell/pruebas_shell.sh    pruebas de la cadena shell -> editor -> compresión
@@ -184,7 +192,7 @@ por cada bloque: u32 bytes_originales | u32 bytes_codificados | datos...
 ```
 make test             # integridad del compresor
 make -C editor test   # pruebas del editor (Parcial 1) y de concurrencia
-make -C shell test    # shell -> editor -> compresión, incluido Ctrl+C
+make -C shell test    # shell: editor, comprimir y descomprimir, incluido Ctrl+C
 make tsan             # ThreadSanitizer sobre el compresor
 make -C editor tsan   # ThreadSanitizer sobre el editor
 make asan             # AddressSanitizer
@@ -196,7 +204,7 @@ make valgrind         # memcheck y helgrind
 | Integridad (`cmp` + `md5sum`): archivo vacío, 1 byte, un solo símbolo, texto, binario aleatorio, múltiplo exacto del bloque; con 1 y 8 hilos | Todas idénticas; un archivo corrupto se rechaza sin fallar |
 | Editor: pruebas originales del Parcial 1 | 23 de 23 |
 | Editor: concurrencia (edición durante la compresión, cancelación, SIGINT, protecciones) | 21 de 21 |
-| Shell: comandos del Parcial 1, abrir el editor, comprimir y volver; Ctrl+C no cierra el shell | 14 de 14 |
+| Shell: comandos del Parcial 1, `editor`, `comprimir` y `descomprimir`; Ctrl+C no cierra el shell | 23 de 23 |
 | ThreadSanitizer y Helgrind | 0 reportes |
 | AddressSanitizer y Valgrind | 0 errores, 0 bytes en uso al salir |
 

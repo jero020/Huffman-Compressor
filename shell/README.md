@@ -57,7 +57,18 @@ Integra el editor de texto EAFIT (carpeta `../editor/`, con el compresor Huffman
   (`sigaction`), para que la señal solo cancele la compresión y no cierre el shell.
   * *Syscalls*: `sigaction(2)`, `fork(2)`, `execvp(3)`, `waitpid(2)`
 
-### 5. Categoría: Utilidades (`utilidades`)
+### 5. Categoría: Compresión (`compresion`)
+
+Lanza el compresor Huffman concurrente (`../huffcli`) como un proceso hijo del shell. El
+compresor reparte el trabajo entre varios hilos y muestra una barra de progreso.
+
+* `comprimir <archivo> [salida] [-t hilos]`: comprime el archivo (por defecto a `<archivo>.huf`).
+* `descomprimir <archivo.huf> [salida] [-t hilos]`: lo restaura (por defecto a `<archivo>.restaurado`).
+  * *Syscalls*: `sigaction(2)`, `fork(2)`, `execvp(3)`, `waitpid(2)`
+
+Mientras el compresor corre, el shell ignora Ctrl+C: la señal solo cancela la compresión.
+
+### 6. Categoría: Utilidades (`utilidades`)
 
 Comandos útiles para ver la hora, la fecha y saludar al usuario actual.
 
@@ -122,5 +133,5 @@ sys-shell> d_info mi_archivo.txt
 El shell cuenta con una sección de ayuda dinámica muy completa. Puedes escribir:
 
 * `help`: Muestra la bienvenida y el listado de categorías.
-* `help <categoria>`: Muestra todos los comandos pertenecientes a `datos`, `memoria`, `monitoreo` o `utilidades`.
+* `help <categoria>`: Muestra todos los comandos pertenecientes a `datos`, `memoria`, `monitoreo`, `compresion`, `edicion` o `utilidades`.
 * `help <comando>`: Explica individualmente qué hace un comando, cómo se usa y qué llamadas al sistema específicas invoca.

@@ -94,6 +94,10 @@ int cmd_fecha(int argc, char **argv);     /* Syscalls: time */
 int cmd_despedir(int argc, char **argv);
 int cmd_cambiar_color(int argc, char **argv);  /* Syscalls: getuid */
 
+/* --- Categoría: Compresión (cat_compresor.c) --- */
+int cmd_comprimir(int argc, char **argv);    /* Syscalls: sigaction, fork, execvp, waitpid */
+int cmd_descomprimir(int argc, char **argv); /* Syscalls: sigaction, fork, execvp, waitpid */
+
 /* --- Categoría: Edición (cat_editor.c) --- */
 int cmd_editor(int argc, char **argv); /* Syscalls: fork, execvp, waitpid */
 #endif /* SHELL_H */

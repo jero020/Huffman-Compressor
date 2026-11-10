@@ -133,6 +133,22 @@ Command commands[] = {
     cmd_cambiar_color
     },
 
+    /* --- Categoría: Compresión (Parcial 2) --- */
+    {
+        "comprimir", "compresion",
+        "comprimir <archivo> [salida] [-t hilos]",
+        "Comprime un archivo con Huffman usando varios hilos (por defecto <archivo>.huf).",
+        "sigaction(2), fork(2), execvp(3), waitpid(2)",
+        cmd_comprimir
+    },
+    {
+        "descomprimir", "compresion",
+        "descomprimir <archivo.huf> [salida] [-t hilos]",
+        "Descomprime un archivo .huf usando varios hilos (por defecto <archivo>.restaurado).",
+        "sigaction(2), fork(2), execvp(3), waitpid(2)",
+        cmd_descomprimir
+    },
+
     /* --- Categoría: Edición --- */
     {
         "editor", "edicion",
@@ -221,6 +237,7 @@ void print_help(const char *arg) {
         printf("  " COLOR_CATEGORY "memoria" COLOR_RESET "    - Comandos de control de heap y memoria (sbrk, mmap, ...)\n");
         printf("  " COLOR_CATEGORY "monitoreo" COLOR_RESET "  - Comandos de procesos, señales y recursos (fork, exec, kill, getrusage)\n");
         printf("  " COLOR_CATEGORY "utilidades" COLOR_RESET " - Comandos útiles del sistema (saludar, hora, fecha)\n");
+        printf("  " COLOR_CATEGORY "compresion" COLOR_RESET " - Compresor Huffman con hilos (comprimir, descomprimir)\n");
         printf("  " COLOR_CATEGORY "edicion" COLOR_RESET "    - Editor de texto EAFIT con compresor Huffman (comando 'editor')\n\n");
         printf("Uso general:\n");
         printf("  " COLOR_PROMPT "help <categoria>" COLOR_RESET "  - Muestra comandos específicos de una categoría.\n");
@@ -233,7 +250,7 @@ void print_help(const char *arg) {
     /* Caso 2: El usuario escribió 'help <categoria>': Mostrar comandos del grupo */
     if (strcmp(arg, "datos") == 0 || strcmp(arg, "memoria") == 0 || 
         strcmp(arg, "monitoreo") == 0 || strcmp(arg, "utilidades") == 0 ||
-        strcmp(arg, "edicion") == 0) {
+        strcmp(arg, "edicion") == 0 || strcmp(arg, "compresion") == 0) {
         printf(COLOR_TITLE "\n--- Categoría: %s ---\n" COLOR_RESET, arg);
         for (int i = 0; i < num_commands; i++) {
             if (strcmp(commands[i].category, arg) == 0) {

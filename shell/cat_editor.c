@@ -91,6 +91,7 @@ int cmd_editor(int argc, char **argv) {
     /* 2. LLAMADA AL SISTEMA: fork */
     fflush(stdout); /* que el hijo no herede texto pendiente del buffer */
     LOG_SYSCALL("fork", "");
+    fflush(stdout); /* si no, el hijo hereda este texto en su buffer y lo imprime dos veces */
     pid_t pid = fork();
     if (pid == -1) {
         LOG_SYSCALL_ERROR(strerror(errno));
